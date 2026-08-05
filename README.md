@@ -434,7 +434,7 @@ In the XAMPP Control Panel, click **Start** next to both **Apache** and **MySQL*
 
 ### Step 8 — Run the ESP32 Simulation
 
-1. Click the green **Play ▶** button in Wokwi.
+1. Click the green  button in Wokwi.
 2. Confirm in the console log that the ESP32 connects to WiFi and to the MQTT broker successfully.
 
 ### Step 9 — Open the Dashboard
