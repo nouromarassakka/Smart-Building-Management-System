@@ -1,0 +1,467 @@
+[
+    {
+        "id": "5203f3bba624e776",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "mqtt_in_building_all",
+        "type": "mqtt in",
+        "z": "5203f3bba624e776",
+        "name": "building/#",
+        "topic": "building/#",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "broker_pegasus_hivemq",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 800,
+        "y": 220,
+        "wires": [
+            [
+                "func_pegasus_processor"
+            ]
+        ]
+    },
+    {
+        "id": "func_pegasus_processor",
+        "type": "function",
+        "z": "5203f3bba624e776",
+        "name": "Pegasus Payload Processor",
+        "func": "var topic = msg.topic;\nvar payload = msg.payload;\n\n// Handle string vs JSON object payloads\nif (typeof payload === 'string') {\n    try { payload = JSON.parse(payload); } catch(e) {}\n}\n\nvar msgTemp = null;\nvar msgHum = null;\nvar msgLight = null;\nvar msgMotion = null;\nvar msgSmoke = null;\nvar msgHealth = null;\nvar msgAvail = null;\nvar dbMsgs = [];\n\n// Handle Combined Telemetry Payload\nif (topic === 'building/telemetry' && typeof payload === 'object') {\n    if (payload.temperature !== undefined) {\n        msgTemp = { payload: payload.temperature };\n        dbMsgs.push({ topic: \"INSERT INTO Sensors (sensor_name, value) VALUES ('temperature', \" + payload.temperature + \");\" });\n    }\n    if (payload.humidity !== undefined) {\n        msgHum = { payload: payload.humidity };\n        dbMsgs.push({ topic: \"INSERT INTO Sensors (sensor_name, value) VALUES ('humidity', \" + payload.humidity + \");\" });\n    }\n    if (payload.light !== undefined) {\n        msgLight = { payload: payload.light };\n        dbMsgs.push({ topic: \"INSERT INTO Sensors (sensor_name, value) VALUES ('light', \" + payload.light + \");\" });\n    }\n    if (payload.motion !== undefined) {\n        msgMotion = { payload: payload.motion };\n        dbMsgs.push({ topic: \"INSERT INTO Sensors (sensor_name, value) VALUES ('motion', \" + payload.motion + \");\" });\n    }\n    if (payload.smoke !== undefined) {\n        msgSmoke = { payload: payload.smoke };\n        dbMsgs.push({ topic: \"INSERT INTO Sensors (sensor_name, value) VALUES ('smoke', \" + payload.smoke + \");\" });\n    }\n}\n// Handle Individual Topics\nelse if (topic === 'building/temperature') {\n    msgTemp = { payload: parseFloat(payload) };\n} else if (topic === 'building/humidity') {\n    msgHum = { payload: parseFloat(payload) };\n} else if (topic === 'building/health') {\n    msgHealth = { payload: parseInt(payload) };\n} else if (topic === 'building/availability') {\n    msgAvail = { payload: String(payload) };\n}\n\nreturn [\n    msgTemp, msgHum, msgLight, msgMotion, msgSmoke, msgHealth, msgAvail, dbMsgs\n];",
+        "outputs": 8,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1080,
+        "y": 220,
+        "wires": [
+            [
+                "gauge_temp_pegasus",
+                "chart_temp_pegasus"
+            ],
+            [
+                "gauge_hum_pegasus",
+                "chart_hum_pegasus"
+            ],
+            [
+                "text_light_pegasus"
+            ],
+            [
+                "text_motion_pegasus"
+            ],
+            [
+                "text_smoke_pegasus"
+            ],
+            [
+                "gauge_health_pegasus"
+            ],
+            [
+                "text_avail_pegasus"
+            ],
+            [
+                "mysql_out_pegasus"
+            ]
+        ]
+    },
+    {
+        "id": "gauge_temp_pegasus",
+        "type": "ui_gauge",
+        "z": "5203f3bba624e776",
+        "name": "Temp Gauge",
+        "group": "grp_env_pegasus",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "Temperature (°C)",
+        "label": "°C",
+        "format": "{{msg.payload}}",
+        "min": 0,
+        "max": 50,
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "25",
+        "seg2": "35",
+        "x": 1350,
+        "y": 100,
+        "wires": []
+    },
+    {
+        "id": "gauge_hum_pegasus",
+        "type": "ui_gauge",
+        "z": "5203f3bba624e776",
+        "name": "Hum Gauge",
+        "group": "grp_env_pegasus",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "Humidity (%)",
+        "label": "%",
+        "format": "{{msg.payload}}",
+        "min": 0,
+        "max": 100,
+        "colors": [
+            "#1f77b4",
+            "#17becf",
+            "#005b96"
+        ],
+        "seg1": "40",
+        "seg2": "70",
+        "x": 1350,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "text_light_pegasus",
+        "type": "ui_text",
+        "z": "5203f3bba624e776",
+        "group": "grp_env_pegasus",
+        "order": 3,
+        "width": 0,
+        "height": 0,
+        "name": "Light Text",
+        "label": "Light Sensor (ADC):",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "x": 1350,
+        "y": 220,
+        "wires": []
+    },
+    {
+        "id": "text_motion_pegasus",
+        "type": "ui_text",
+        "z": "5203f3bba624e776",
+        "group": "grp_sec_pegasus",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "name": "Motion Text",
+        "label": "Motion Detector:",
+        "format": "{{msg.payload == 1 ? '⚠️ MOTION DETECTED' : '✅ Clear'}}",
+        "layout": "row-spread",
+        "x": 1350,
+        "y": 280,
+        "wires": []
+    },
+    {
+        "id": "text_smoke_pegasus",
+        "type": "ui_text",
+        "z": "5203f3bba624e776",
+        "group": "grp_sec_pegasus",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "name": "Smoke Text",
+        "label": "Gas/Smoke Sensor:",
+        "format": "{{msg.payload == 1 ? '🔥 SMOKE ALARM!' : '✅ Normal'}}",
+        "layout": "row-spread",
+        "x": 1350,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "gauge_health_pegasus",
+        "type": "ui_gauge",
+        "z": "5203f3bba624e776",
+        "name": "System Health",
+        "group": "grp_sec_pegasus",
+        "order": 3,
+        "width": 0,
+        "height": 0,
+        "gtype": "gage",
+        "title": "System Health Score",
+        "label": "%",
+        "format": "{{msg.payload}}",
+        "min": 0,
+        "max": 100,
+        "colors": [
+            "#ca3838",
+            "#e6e600",
+            "#00b500"
+        ],
+        "seg1": "50",
+        "seg2": "80",
+        "x": 1350,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "text_avail_pegasus",
+        "type": "ui_text",
+        "z": "5203f3bba624e776",
+        "group": "grp_sec_pegasus",
+        "order": 4,
+        "width": 0,
+        "height": 0,
+        "name": "Availability",
+        "label": "System Status:",
+        "format": "🟢 {{msg.payload}}",
+        "layout": "row-spread",
+        "x": 1350,
+        "y": 460,
+        "wires": []
+    },
+    {
+        "id": "chart_temp_pegasus",
+        "type": "ui_chart",
+        "z": "5203f3bba624e776",
+        "name": "Temp Chart",
+        "group": "grp_chart_pegasus",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "label": "Live Temperature (°C)",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "",
+        "dot": false,
+        "ymin": "0",
+        "ymax": "50",
+        "removeOlder": 1,
+        "removeOlderPoints": "",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e"
+        ],
+        "outputs": 1,
+        "x": 1350,
+        "y": 520,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "chart_hum_pegasus",
+        "type": "ui_chart",
+        "z": "5203f3bba624e776",
+        "name": "Hum Chart",
+        "group": "grp_chart_pegasus",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "label": "Live Humidity (%)",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "",
+        "dot": false,
+        "ymin": "0",
+        "ymax": "100",
+        "removeOlder": 1,
+        "removeOlderPoints": "",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "colors": [
+            "#2ca02c",
+            "#98df8a",
+            "#d62728"
+        ],
+        "outputs": 1,
+        "x": 1350,
+        "y": 580,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "mysql_out_pegasus",
+        "type": "mysql",
+        "z": "5203f3bba624e776",
+        "mydb": "3a0260652c669945",
+        "name": "smart_building_db",
+        "x": 1350,
+        "y": 640,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "mqtt_out_pegasus",
+        "type": "mqtt out",
+        "z": "5203f3bba624e776",
+        "name": "MQTT Out Commands",
+        "topic": "",
+        "qos": "",
+        "retain": "",
+        "broker": "broker_pegasus_hivemq",
+        "x": 1350,
+        "y": 720,
+        "wires": []
+    },
+    {
+        "id": "switch_light_pegasus",
+        "type": "ui_switch",
+        "z": "5203f3bba624e776",
+        "name": "Light Switch",
+        "label": "💡 Light Relay (Pin 18)",
+        "group": "grp_ctrl_pegasus",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "decouple": "false",
+        "topic": "building/light/control",
+        "topicType": "str",
+        "onvalue": "ON",
+        "onvalueType": "str",
+        "offvalue": "OFF",
+        "offvalueType": "str",
+        "x": 1060,
+        "y": 700,
+        "wires": [
+            [
+                "mqtt_out_pegasus"
+            ]
+        ]
+    },
+    {
+        "id": "switch_fan_pegasus",
+        "type": "ui_switch",
+        "z": "5203f3bba624e776",
+        "name": "Fan Switch",
+        "label": "🌀 Fan Relay (Pin 19)",
+        "group": "grp_ctrl_pegasus",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "decouple": "false",
+        "topic": "building/fan/control",
+        "topicType": "str",
+        "onvalue": "ON",
+        "onvalueType": "str",
+        "offvalue": "OFF",
+        "offvalueType": "str",
+        "x": 1060,
+        "y": 740,
+        "wires": [
+            [
+                "mqtt_out_pegasus"
+            ]
+        ]
+    },
+    {
+        "id": "switch_buzzer_pegasus",
+        "type": "ui_switch",
+        "z": "5203f3bba624e776",
+        "name": "Buzzer Switch",
+        "label": "🔊 Buzzer Alarm (Pin 27)",
+        "group": "grp_ctrl_pegasus",
+        "order": 3,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "decouple": "false",
+        "topic": "building/buzzer/control",
+        "topicType": "str",
+        "onvalue": "ON",
+        "onvalueType": "str",
+        "offvalue": "OFF",
+        "offvalueType": "str",
+        "x": 1060,
+        "y": 780,
+        "wires": [
+            [
+                "mqtt_out_pegasus"
+            ]
+        ]
+    },
+    {
+        "id": "broker_pegasus_hivemq",
+        "type": "mqtt-broker",
+        "name": "HiveMQ Broker",
+        "broker": "broker.hivemq.com",
+        "port": "1883",
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": true
+    },
+    {
+        "id": "grp_env_pegasus",
+        "type": "ui_group",
+        "name": "🌡️ Environment Metrics",
+        "tab": "tab_pegasus_dashboard",
+        "order": 1,
+        "disp": true,
+        "width": "6",
+        "collapse": false
+    },
+    {
+        "id": "grp_sec_pegasus",
+        "type": "ui_group",
+        "name": "🚨 Safety & Security",
+        "tab": "tab_pegasus_dashboard",
+        "order": 2,
+        "disp": true,
+        "width": "6",
+        "collapse": false
+    },
+    {
+        "id": "grp_chart_pegasus",
+        "type": "ui_group",
+        "name": "📈 Live Telemetry Charts",
+        "tab": "tab_pegasus_dashboard",
+        "order": 4,
+        "disp": true,
+        "width": "6",
+        "collapse": false
+    },
+    {
+        "id": "3a0260652c669945",
+        "type": "MySQLdatabase",
+        "name": "",
+        "host": "127.0.0.1",
+        "port": "3306",
+        "db": "smart_building_db",
+        "tz": "",
+        "charset": "UTF8"
+    },
+    {
+        "id": "grp_ctrl_pegasus",
+        "type": "ui_group",
+        "name": "🎛️ Actuator Remote Controls",
+        "tab": "tab_pegasus_dashboard",
+        "order": 3,
+        "disp": true,
+        "width": "6",
+        "collapse": false
+    },
+    {
+        "id": "tab_pegasus_dashboard",
+        "type": "ui_tab",
+        "name": "Smart Building pegasus",
+        "icon": "dashboard",
+        "order": 1
+    },
+    {
+        "id": "2f221323093c8c04",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-dashboard": "3.6.6",
+            "node-red-node-mysql": "3.0.3"
+        }
+    }
+]
